@@ -1,23 +1,57 @@
-# 1. Create the missing configuration file
-buildozer init
+name: Build Android APK
 
-# 2. Configure the file automatically (Title, Package Name, etc.)
-# These commands edit the 'buildozer.spec' file for you.
+on:
+  workflow_dispatch: # Allows you to click a button to start the build manually
+  push:
+    branches: [ main ]
 
-# Set App Title
-sed -i 's/title = My Application/title = FamilyFinance/g' buildozer.spec
+jobs:
+  build:
+    runs-on: ubuntu-22.04 # Using 22.04 for better stability with Buildozer
 
-# Set Package Name
-sed -i 's/package.name = myapp/package.name = familyfinance/g' buildozer.spec
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-# Set Domain
-sed -i 's/package.domain = org.test/package.domain = org.family/g' buildozer.spec
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-# CRITICAL: Add Requirements (KivyMD, Internet support)
-sed -i 's/requirements = python3,kivy/requirements = python3,kivy==2.2.1,kivymd,requests,urllib3,chardet,idna,openssl/g' buildozer.spec
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libffi-dev libssl-dev python3-dev
+          sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake
 
-# CRITICAL: Add Internet Permission (So app can talk to Google Sheets)
-sed -i 's/android.permissions = INTERNET/android.permissions = INTERNET/g' buildozer.spec
+      - name: Install Buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install buildozer
+          pip install "Cython==0.29.33" # Critical fix for Kivy
 
-# 3. Now you can build the APK
-yes | buildozer android debug
+      - name: Configure Buildozer (Create Spec File)
+        run: |
+          # Initialize buildozer
+          yes | buildozer init
+          
+          # Edit the buildozer.spec file automatically
+          sed -i 's/title = My Application/title = FamilyFinance/g' buildozer.spec
+          sed -i 's/package.name = myapp/package.name = familyfinance/g' buildozer.spec
+          sed -i 's/package.domain = org.test/package.domain = org.family/g' buildozer.spec
+          
+          # Add requirements (KivyMD, Requests, OpenSSL)
+          sed -i 's/requirements = python3,kivy/requirements = python3,kivy==2.2.1,kivymd,requests,urllib3,chardet,idna,openssl/g' buildozer.spec
+          
+          # Add Internet Permission
+          sed -i 's/android.permissions = INTERNET/android.permissions = INTERNET/g' buildozer.spec
+
+      - name: Build with Buildozer
+        run: |
+          yes | buildozer android debug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FamilyFinance-APK
+          path: bin/*.apk
