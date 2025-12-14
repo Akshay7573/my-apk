@@ -1,36 +1,23 @@
-name: Build APK
-on:
-  push:
-  workflow_dispatch:
+# 1. Create the missing configuration file
+buildozer init
 
-jobs:
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+# 2. Configure the file automatically (Title, Package Name, etc.)
+# These commands edit the 'buildozer.spec' file for you.
 
-      - name: Install system deps
-        run: |
-          sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip python3-venv \
-            autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo6 \
-            cmake libffi-dev libssl-dev
+# Set App Title
+sed -i 's/title = My Application/title = FamilyFinance/g' buildozer.spec
 
+# Set Package Name
+sed -i 's/package.name = myapp/package.name = familyfinance/g' buildozer.spec
 
-      - name: Create venv and install buildozer
-        run: |
-          python3 -m venv .venv
-          . .venv/bin/activate
-          pip install --upgrade pip setuptools wheel
-          pip install Cython==0.29.33 buildozer
+# Set Domain
+sed -i 's/package.domain = org.test/package.domain = org.family/g' buildozer.spec
 
-      - name: Build APK
-        run: |
-          . .venv/bin/activate
-          buildozer -v android debug
+# CRITICAL: Add Requirements (KivyMD, Internet support)
+sed -i 's/requirements = python3,kivy/requirements = python3,kivy==2.2.1,kivymd,requests,urllib3,chardet,idna,openssl/g' buildozer.spec
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk
-          path: bin/*.apk
+# CRITICAL: Add Internet Permission (So app can talk to Google Sheets)
+sed -i 's/android.permissions = INTERNET/android.permissions = INTERNET/g' buildozer.spec
+
+# 3. Now you can build the APK
+yes | buildozer android debug
